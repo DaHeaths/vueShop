@@ -9,7 +9,7 @@
           <div class="filter-nav">
             <span class="sortby">Sort by:</span>
             <a href="javascript:void(0)" class="default cur">Default</a>
-            <a href="javascript:void(0)" class="price">Price <svg class="icon icon-arrow-short"><use xlink:href="#icon-arrow-short"></use></svg></a>
+            <a href="javascript:void(0)" @click="sortGoods" class="price">Price <svg class="icon icon-arrow-short"><use xlink:href="#icon-arrow-short"></use></svg></a>
             <a href="javascript:void(0)" class="filterby stopPop" @click="showFilterPop">Filter by</a>
           </div>
           <div class="accessory-result">
@@ -41,6 +41,7 @@
                     </div>
                   </li>
                 </ul>
+                <div v-infinite-scroll="loadMore" infinite-scroll-disabled="busy" infinite-scroll-distance="30">加载中......</div>
               </div>
             </div>
           </div>
@@ -85,7 +86,9 @@ export default {
       // 遮罩
       overLayFlag: false,
       // API商品
-      goodsList: []
+      goodsList: [],
+      // 是否滚动加载
+      busy: true
     }
   },
   methods: {
@@ -105,23 +108,65 @@ export default {
     },
     setPriceFilter (index) {
       this.priceChecked = index
-
+      this.page = 1
       this.closePop()
+      this.getGoodsList()
+    },
+    /**
+     * 分页获取商品
+     */
+    getGoodsList (flag) {
+      let param = {
+        page: this.page,
+        pageSize: this.pageSize,
+        sort: this.sortFlag?1:-1,
+        priceLevel: this.priceChecked,
+        busy: true
+      }
+      /**
+       * 请求商品API接口
+       */
+      axios.get('/goods', {params: param}).then((response) => {
+        let res = response.data
+        if (res.status == '0') {
+          this.goodsList = res.result.list
+          console.log(666, res.result.list)
+          if (flag) {
+            this.goodsList = this.goodsList.concat(res.result.list)
+            if (res.result.count == 0) {
+              this.busy = true
+            } else {
+              this.busy = false
+            }
+          } else {
+            this.goodsList = res.result.list
+            this.busy = false
+          }
+        } else {
+          this.goodsList = []
+        }
+      })
+    },
+    /**
+     * 价格降序和升序
+     */
+    sortGoods () {
+      this.sortFlag = !this.sortFlag
+      this.page = 1
+      this.getGoodsList()
+    },
+    /**
+     * 滚动加载商品
+     */
+    loadMore () {
+      setTimeout(() => {
+        this.page++;
+        this.busy = true
+      }, 1000)
     }
   },
   mounted () {
-  /**
-   * 请求商品API接口
-   */
-    axios.get('/goods').then((response) => {
-      let res = response.data
-      if (res.status == '0') {
-        this.goodsList = res.result.list
-        console.log(666, res.result.list)
-      } else {
-        this.goodsList = []
-      }
-    })
+    this.getGoodsList()
   },
 
   /**
