@@ -17,7 +17,7 @@
             <div class="filter stopPop" id="filter" :class="{'filterby-show': filterBy}">
               <dl class="filter-price">
                 <dt>Price:</dt>
-                <dd><a href="javascript:void(0)" :class="{'cur': priceChecked == 'all'}" @click="priceChecked='all'">All</a></dd>
+                <dd><a href="javascript:void(0)" :class="{'cur': priceChecked == 'all'}" @click="setPriceFilter('all')">All</a></dd>
                 <dd v-for="(price, index) in priceFilter" >
                   <a href="javascript:void(0)" @click="setPriceFilter(index)" :class="{'cur': priceChecked==index}">{{price.startPrice}} ~ {{price.endPrice}}</a>
                 </dd>
@@ -36,12 +36,14 @@
                       <div class="name">{{item.productName}}</div>
                       <div class="price">{{item.salePrice}}</div>
                       <div class="btn-area">
-                        <a href="javascript:;" class="btn btn--m">加入购物车</a>
+                        <a href="javascript:;" class="btn btn-cart" @click="addCart(item.productId)">加入购物车</a>
                       </div>
                     </div>
                   </li>
                 </ul>
-                <div v-infinite-scroll="loadMore" infinite-scroll-disabled="busy" infinite-scroll-distance="30">加载中......</div>
+                <div v-infinite-scroll="loadMore" style="text-align: center;" infinite-scroll-disabled="busy" infinite-scroll-distance="30">
+                  <img src="../assets/loading-spinning-bubbles.svg" v-show="loading" alt="">
+                </div>
               </div>
             </div>
           </div>
@@ -78,7 +80,7 @@ export default {
         },
         {
           startPrice: '1000',
-          endPrice: '2000'
+          endPrice: '5000'
         },
       ],
       // 控制隐藏或者显示
@@ -88,7 +90,14 @@ export default {
       // API商品
       goodsList: [],
       // 是否滚动加载
-      busy: true
+      busy: true,
+      // 页数
+      page: 1,
+      // 每次加载的商品数量
+      pageSize: 4,
+      sortFlag: true,
+      // 是否显示加载icon(默认不显示)
+      loading: false
     }
   },
   methods: {
@@ -119,21 +128,24 @@ export default {
       let param = {
         page: this.page,
         pageSize: this.pageSize,
-        sort: this.sortFlag?1:-1,
+        sort: this.sortFlag ? 1 : -1,
         priceLevel: this.priceChecked,
         busy: true
       }
       /**
        * 请求商品API接口
        */
+      this.loading = true
       axios.get('/goods', {params: param}).then((response) => {
         let res = response.data
         if (res.status == '0') {
-          this.goodsList = res.result.list
-          console.log(666, res.result.list)
+          this.loading = false
+          // this.goodsList = res.result.list
+          // console.log(666, res.result.list)
           if (flag) {
             this.goodsList = this.goodsList.concat(res.result.list)
-            if (res.result.count == 0) {
+            // console.log('老司机', this.goodsList)
+            if (res.result.count < 4) {
               this.busy = true
             } else {
               this.busy = false
@@ -159,10 +171,27 @@ export default {
      * 滚动加载商品
      */
     loadMore () {
+      this.busy = true
       setTimeout(() => {
         this.page++;
-        this.busy = true
+        this.getGoodsList(true)
       }, 1000)
+    },
+
+    /**
+     * 加入购物车
+     */
+    addCart (productId) {
+      axios.post('/goods/addCart', {
+        productId: productId
+      }).then((res) => {
+        // console.log(666,res.data)
+        if (res.data.status == 0) {
+          console.log("加入购物车成功！")
+        } else {
+          console.log("msg" + res.msg)
+        }
+      })
     }
   },
   mounted () {
